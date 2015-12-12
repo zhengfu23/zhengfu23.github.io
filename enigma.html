@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Enigma Machine Simulator</title>
+        <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js?autoload=true&amp;skin=sunburst&amp;lang=ml"></script>
+</head>
+    <body>
+        <p>CS 3110 Functional Programming</p>
+        <a href="projects.html">back to projects</a>
+<pre class="prettyprint lang-ml linenums:1">
+    (* CS3110 A1 : Enigma *)
+    (* Reference string of the standard alphabet to determine index. *)
+    let id       = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+
+    (* [simulate] takes the same inputs as [cipher] but prints
+     * a simulation of the Enigma machine at each step of the
+     * computation.
+     *)
+    let simulate (refl:string) (rotors:string list) (notches:char list)
+                 (starts:char list) (s:string) : unit
+    =
+      print_string "I'm pretty sure it's correct :P and I really don't
+                    have time to implement this......\n"
+
+
+    (* Map input index to output index according to rotor internal wiring.
+     * The encryption direction is from right to left and left to right.
+     *)
+    let rotor_RtoL (rotor:string)(start:int)(input:int) : int
+    =
+    ((26-start)+(String.index id (String.get rotor ((start+input) mod 26)))) mod 26
+
+    let rotor_LtoR (rotor:string)(start:int)(input:int) : int
+    =
+    ((26-start)+(String.index rotor (String.get id ((start+input) mod 26)))) mod 26
+
+    (* Reflector function, map input index to output index according to wiring *)
+    let reflect (refl:string)(start:int)(input:int) : int
+    =
+    ((26-start)+(String.index refl (String.get id ((start+input) mod 26)))) mod 26
+
+
+    (* The two functions that use rotor_RtoL and rotor_LtoR as helper functions.
+     * Takes in list of rotor wirings as they are positioned in the machine.
+     * using starting position of each rotor to determine the actual mapping
+     * of characters across all the motors install from right to left and back
+     *)
+    let rec encrypt_RtoL (rotors:string list) (starts:int list) (input:int) : int
+    =
+      match rotors,starts with
+      | [],[] -> input
+      | h1::t1,h2::t2 -> rotor_RtoL h1 h2 (encrypt_RtoL t1 t2 input)
+      | [],_ -> failwith"rotorList shorter than startListRL"
+      | _,[] -> failwith"startList shorter than rotorListRL"
+
+    let rec encrypt_LtoR (rotors:string list) (starts:int list) (input:int) : int
+    =
+      match rotors,starts with
+      | [],[] -> input
+      | h1::t1,h2::t2 -> encrypt_LtoR t1 t2 (rotor_LtoR h1 h2 input)
+      | [],_ -> failwith"rotorList shorter than startListLR"
+      | _,[] -> failwith"startList shorter than rotorListLR"
+
+
+    (* This function uses the two directional encryption helper function as well as
+     * the reflect function to encrypt one letter according to the machine setting.
+     *)
+    let index_encrypt (rotors:string list) (refl:string)
+                      (input:int) (starts:int list) : int
+    =
+    encrypt_LtoR rotors starts (
+      reflect refl 0 (
+        encrypt_RtoL rotors starts input))
+
+
+    (* The rev_stepping and stepping functions handle the stepping of the rotors
+     * after a key is pressed.
+     *)
+    let rec rev_stepping (rev_starts:int list) (rev_notchs:int list)
+                     (doStep:bool) : int list
+    =
+      match rev_starts,rev_notchs with
+      | [],[] -> []
+      | h1::t1,h2::t2 ->
+          if doStep then
+            ((h1+1) mod 26)::(rev_stepping t1 t2 (h1=h2))
+          else
+          if List.length t1 = 0 then
+            (h1)::(rev_stepping t1 t2 (h1=h2))
+          else
+          if h1=h2 then
+            ((h1+1) mod 26)::(rev_stepping t1 t2 (h1=h2))
+          else
+            (h1)::(rev_stepping t1 t2 (h1=h2))
+      | [],_ -> failwith"startList shorter than notchList"
+      | _,[] -> failwith"notchList shorter than startList"
+
+    let stepping (starts:int list) (notchs:int list) : int list
+    =
+    List.rev (rev_stepping (List.rev starts) (List.rev notchs) true)
+
+
+    (* This function adapts the index_encrypt function to allow direct character
+     * input/output as opposed to character index input/output
+     *)
+    let char_encrypt (rotors:string list) (refl:string)
+                     (input:char) (starts:int list) : char
+    =
+    String.get id (index_encrypt rotors refl (String.index id input) starts)
+
+
+    (* Two simple helper functions that converts list of characters to list of
+     * integers and vice versa.
+     *)
+    let rec charListToIntList (inputs:char list) : int list
+    =
+      match inputs with
+      |[] -> []
+      |h::t -> (String.index id h)::(charListToIntList t)
+
+    let rec intListToCharList (inputs:int list) : char list
+    =
+    match inputs with
+      |[] -> []
+      |h::t -> (String.get id h)::(intListToCharList t)
+
+
+    (* [cipher refl rotors notches starts s] computes the Enigma cipher, where
+     *  - [refl] is the wiring of the reflector,
+     *  - [rotors] is a list of the rotors (which must contain at least
+     *      one element), as they are installed from left to right on
+     *      the spindle,
+     *  - [notches] is a list of where the notch is on each rotor,
+     *      where the nth character of [notches] is the location of
+     *      the notch on the nth rotor in [rotors],
+     *  - [starts] is a list of the starting character for each rotor
+     *      as positioned on the spindle, where the nth character of
+     *      [starts] is the starting character for the nth rotor in
+     *      [rotors].
+     *  - [s] is the string to be ciphered.
+     *)
+    let rec cipher (refl:string) (rotors:string list) (notches:char list)
+                   (starts:char list) (s:string) : string
+    =
+    let new_list = stepping (charListToIntList starts) (charListToIntList notches) in
+    if String.get s 0 = ' ' then
+    " " ^ cipher refl rotors notches
+                 starts (String.sub s 1 ((String.length s)-1))
+    else
+    (Char.escaped (char_encrypt rotors refl (String.get s 0) (new_list))) ^
+      if String.length s = 1 then
+      ""
+      else
+      cipher refl rotors notches
+             (intListToCharList new_list) (String.sub s 1 ((String.length s)-1))
+</pre>
+        <p>source code for enabling syntax coloring from <a href="https://code.google.com/p/google-code-prettify/">google-code-prettify</a></p>
+    </body>
+</html>
